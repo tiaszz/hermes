@@ -1,0 +1,49 @@
+package com.notification.gateway.service;
+
+import java.util.List;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import com.notification.gateway.dto.request.UserRequest;
+import com.notification.gateway.dto.response.UserResponse;
+import com.notification.gateway.exception.ResourceNotFoundException;
+import com.notification.gateway.mapper.UserMapper;
+import com.notification.gateway.model.User;
+import com.notification.gateway.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+    private final UserRepository userRepository;
+    private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
+
+    public List<UserResponse> findAll() {
+        return userRepository.findAll()
+                .stream()
+                .map(userMapper::toResponse)
+                .toList();
+    }
+
+    public UserResponse findById(Long id) {
+        User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return userMapper.toResponse(user);
+    }
+
+    public UserResponse findByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return userMapper.toResponse(user);
+    }
+
+    public UserResponse save(UserRequest request) {
+        User user = userMapper.toEntity(request);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        User saved = userRepository.save(user);
+        return userMapper.toResponse(saved);
+    }
+}
