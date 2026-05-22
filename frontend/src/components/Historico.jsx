@@ -1,112 +1,55 @@
-import { useState } from "react";
-import {
-    StatCard,
-    Badge,
-    Icon,
-    Modal,
-    FormField,
-    Input,
-    useToast,
-} from "../components/UI.jsx";
+import { useState, useMemo } from "react";
+import { Badge, Icon, Modal, useToast } from "../components/UI.jsx";
 import { C } from "../styles.js";
 import { useApp } from "../context/AppContext.jsx";
 
-function EditStatsModal({ stats, onSave, onClose }) {
-    const [form, setForm] = useState({ ...stats });
-    const set = (k) => (v) => setForm((f) => ({ ...f, [k]: Number(v) }));
-    return (
-        <Modal
-            title="Editar estatísticas do painel"
-            onClose={onClose}
-            width={400}
-        >
-            <FormField label="Enviados hoje">
-                <Input
-                    type="number"
-                    value={form.enviadosHoje}
-                    onChange={set("enviadosHoje")}
-                />
-            </FormField>
-            <FormField label="Agendados (próx. 24h)">
-                <Input
-                    type="number"
-                    value={form.agendados}
-                    onChange={set("agendados")}
-                />
-            </FormField>
-            <FormField label="Burst máximo (por min)">
-                <Input
-                    type="number"
-                    value={form.burstMax}
-                    onChange={set("burstMax")}
-                />
-            </FormField>
-            <FormField label="Erros (24h)">
-                <Input
-                    type="number"
-                    value={form.erros}
-                    onChange={set("erros")}
-                />
-            </FormField>
-            <div className="flex justify-end gap-10 mt-14">
-                <button className="btn btn-secondary" onClick={onClose}>
-                    Cancelar
-                </button>
-                <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                        onSave(form);
-                        onClose();
-                    }}
-                >
-                    Salvar
-                </button>
-            </div>
-        </Modal>
-    );
-}
+const STATUS_TABS = ["Todos", "Enviado", "Agendado", "Erro", "Rascunho"];
 
-function Painel({ setPage }) {
+export default function Historico({ setPage }) {
     const {
         comunicacoes,
         removeComunicacao,
         updateComunicacaoStatus,
-        stats,
-        updateStats,
         loading,
         error,
         fetchComunicacoes,
     } = useApp();
 
-    const [showEditStats, setShowEditStats] = useState(false);
+    const [tab, setTab] = useState("Todos");
+    const [search, setSearch] = useState("");
     const [confirmDelete, setConfirmDelete] = useState(null);
     const { show, Toast } = useToast();
 
-    const recentes = comunicacoes.slice(0, 4);
+    const filtered = useMemo(() => {
+        let list = comunicacoes;
+        if (tab !== "Todos") list = list.filter((c) => c.status === tab);
+        if (search.trim()) {
+            const q = search.toLowerCase();
+            list = list.filter(
+                (c) =>
+                    c.dest.toLowerCase().includes(q) ||
+                    c.modelo.toLowerCase().includes(q),
+            );
+        }
+        return list;
+    }, [comunicacoes, tab, search]);
 
     return (
         <>
             <div className="topbar">
                 <div>
-                    <div className="page-title">Painel</div>
+                    <div className="page-title">Histórico</div>
                     <div className="page-sub">
-                        Visão geral das comunicações e da saúde do sistema.
+                        Todas as comunicações processadas.
                     </div>
                 </div>
                 <div className="flex gap-10">
                     <button
                         className="btn btn-secondary"
-                        onClick={() => fetchComunicacoes()}
+                        onClick={fetchComunicacoes}
                     >
                         <Icon name="history" size={14} color={C.textSub} />{" "}
                         Atualizar
-                    </button>
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => setShowEditStats(true)}
-                    >
-                        <Icon name="edit" size={14} color={C.textSub} /> Editar
-                        stats
                     </button>
                     <button
                         className="btn btn-primary"
@@ -134,81 +77,69 @@ function Painel({ setPage }) {
                     </div>
                 )}
 
-                <div className="stat-row">
-                    <StatCard
-                        label="Enviados hoje"
-                        value={stats.enviadosHoje}
-                        sub="do backend"
-                        icon="mail"
-                    />
-                    <StatCard
-                        label="Agendados"
-                        value={stats.agendados}
-                        sub="próx. 24h"
-                        icon="clock"
-                    />
-                    <StatCard
-                        label="Burst máx. (min)"
-                        value={stats.burstMax}
-                        sub="limite 30"
-                        icon="send"
-                    />
-                    <StatCard
-                        label="Erros (24h)"
-                        value={stats.erros}
-                        sub="verificar logs"
-                        icon="alert"
-                    />
-                </div>
-
                 <div className="card">
-                    <div className="activity-header">
-                        <div>
-                            <div className="activity-title">
-                                Atividade recente
-                            </div>
-                            <div className="activity-sub">
-                                {loading.comunicacoes
-                                    ? "Carregando..."
-                                    : "Últimas comunicações processadas."}
-                            </div>
+                    <div className="historico-toolbar">
+                        <div className="tabs-bar">
+                            {STATUS_TABS.map((t) => (
+                                <button
+                                    key={t}
+                                    className={`tab-btn${tab === t ? " active" : ""}`}
+                                    onClick={() => setTab(t)}
+                                >
+                                    {t}
+                                </button>
+                            ))}
                         </div>
-                        <span
-                            className="activity-link"
-                            onClick={() => setPage("historico")}
-                        >
-                            Ver tudo{" "}
+                        <div className="search-box">
                             <Icon
-                                name="externalLink"
-                                size={12}
-                                color={C.green}
+                                name="search"
+                                size={14}
+                                color={C.textMuted}
                             />
-                        </span>
+                            <input
+                                placeholder="Buscar destinatário ou modelo..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
                     </div>
 
                     {loading.comunicacoes ? (
                         <div
                             style={{
                                 textAlign: "center",
-                                padding: 32,
+                                padding: 48,
                                 color: C.textMuted,
                             }}
                         >
                             Carregando...
                         </div>
-                    ) : recentes.length === 0 ? (
-                        <div
-                            style={{ textAlign: "center", padding: 32 }}
-                            className="text-muted text-13"
-                        >
-                            Nenhuma comunicação.{" "}
-                            <span
-                                className="text-green"
-                                style={{ cursor: "pointer" }}
-                                onClick={() => setPage("nova")}
-                            >
-                                Criar agora →
-                            </span>
+                    ) : filtered.length === 0 ? (
+                        <div className="empty-state">
+                            <div className="empty-state-icon">
+                                <Icon
+                                    name="history"
+                                    size={36}
+                                    color={C.textMuted}
+                                />
+                            </div>
+                            <div className="empty-state-title">
+                                Nenhuma comunicação encontrada.
+                            </div>
+                            <div className="empty-state-desc">
+                                {tab !== "Todos" || search
+                                    ? "Tente mudar os filtros."
+                                    : "Crie a primeira comunicação."}
+                            </div>
+                            {tab === "Todos" && !search && (
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={() => setPage("nova")}
+                                >
+                                    <Icon name="send" size={14} color="white" />{" "}
+                                    Nova comunicação
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <table className="table">
@@ -226,20 +157,22 @@ function Painel({ setPage }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {recentes.map((a) => (
-                                    <tr key={a.id}>
-                                        <td className="td-primary">{a.dest}</td>
+                                {filtered.map((c) => (
+                                    <tr key={c.id}>
+                                        <td className="td-primary">
+                                            {c.dest}
+                                        </td>
                                         <td className="td-sub">
-                                            {a.modelo} · {a.versao}
+                                            {c.modelo} · {c.versao}
                                         </td>
                                         <td>
                                             <div className="flex items-center gap-6">
-                                                <Badge status={a.status} />
+                                                <Badge status={c.status} />
                                                 <select
-                                                    value={a.status}
+                                                    value={c.status}
                                                     onChange={(e) => {
                                                         updateComunicacaoStatus(
-                                                            a.id,
+                                                            c.id,
                                                             e.target.value,
                                                         );
                                                         show(
@@ -261,12 +194,12 @@ function Painel({ setPage }) {
                                                 </select>
                                             </div>
                                         </td>
-                                        <td className="td-muted">{a.quando}</td>
+                                        <td className="td-muted">{c.quando}</td>
                                         <td>
                                             <button
                                                 className="btn-icon"
                                                 onClick={() =>
-                                                    setConfirmDelete(a.id)
+                                                    setConfirmDelete(c.id)
                                                 }
                                             >
                                                 <Icon
@@ -281,16 +214,14 @@ function Painel({ setPage }) {
                             </tbody>
                         </table>
                     )}
+
+                    <div className="records-count">
+                        {filtered.length} registro
+                        {filtered.length !== 1 ? "s" : ""}
+                        {tab !== "Todos" && ` · filtro: ${tab}`}
+                    </div>
                 </div>
             </div>
-
-            {showEditStats && (
-                <EditStatsModal
-                    stats={stats}
-                    onSave={updateStats}
-                    onClose={() => setShowEditStats(false)}
-                />
-            )}
 
             {confirmDelete && (
                 <Modal
@@ -299,7 +230,7 @@ function Painel({ setPage }) {
                     width={360}
                 >
                     <p className="text-sub mb-22">
-                        Remover esta comunicação da lista local?
+                        Remover esta comunicação da lista?
                     </p>
                     <div className="flex justify-end gap-10">
                         <button
@@ -326,5 +257,3 @@ function Painel({ setPage }) {
         </>
     );
 }
-
-export default Painel;
