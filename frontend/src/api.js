@@ -121,4 +121,16 @@ export const emailMessages = {
     },
 };
 
-export default { auth, templates, templateVersions, emailMessages };
+export const users = {
+    list() {
+        return request("/users");
+    },
+    get(id) {
+        return request(`/users/${id}`);
+    },
+    create(body) {
+        return request("/users", { method: "POST", body });
+    },
+};
+
+export default { auth, templates, templateVersions, emailMessages, users };
