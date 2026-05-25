@@ -29,7 +29,7 @@ function Sidebar({ page, setPage, onLogout }) {
                     <Icon name="mail" size={18} color="white" />
                 </div>
                 <div>
-                    <div className="sidebar-brand-name">Communiq</div>
+                    <div className="sidebar-brand-name">Hermes</div>
                     <div className="sidebar-brand-sub">Comunicação corporativa</div>
                 </div>
             </div>

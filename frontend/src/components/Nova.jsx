@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Icon, FormField, Input, Select, useToast } from "../components/UI.jsx";
 import { C } from "../styles.js";
 import { useApp } from "../context/AppContext.jsx";
@@ -12,6 +12,8 @@ export default function Nova({ setPage }) {
     const [versoes, setVersoes] = useState([]);
     const [versaoId, setVersaoId] = useState("");
     const [versaoNome, setVersaoNome] = useState("v1");
+    const [versaoBody, setVersaoBody] = useState("");
+    const [versaoSubject, setVersaoSubject] = useState("");
     const [loadingVersoes, setLoadingVersoes] = useState(false);
 
     const [para, setPara] = useState("");
@@ -27,11 +29,19 @@ export default function Nova({ setPage }) {
 
     const modeloSel = modelos.find((m) => String(m.id) === String(modeloId));
 
-    // Carrega versões quando muda o modelo
+    // Parse {{variable}} placeholders from the selected version's body.
+    const lacunasDetectadas = useMemo(() => {
+        const matches = [...versaoBody.matchAll(/\{\{(\w+)\}\}/g)];
+        return [...new Set(matches.map((m) => m[1]))];
+    }, [versaoBody]);
+
+    // Load versions whenever the selected template changes.
     useEffect(() => {
         if (!modeloId) {
             setVersoes([]);
             setVersaoId("");
+            setVersaoBody("");
+            setVersaoSubject("");
             return;
         }
         setLoadingVersoes(true);
@@ -44,6 +54,12 @@ export default function Nova({ setPage }) {
                     const latest = list[list.length - 1];
                     setVersaoId(latest.id);
                     setVersaoNome(latest.name ?? `v${list.length}`);
+                    setVersaoBody(latest.body ?? "");
+                    setVersaoSubject(latest.subject ?? "");
+                } else {
+                    setVersaoId("");
+                    setVersaoBody("");
+                    setVersaoSubject("");
                 }
             })
             .catch(() => setVersoes([]))
@@ -51,13 +67,17 @@ export default function Nova({ setPage }) {
         setLacunas({});
     }, [modeloId]);
 
-    const conteudoPreview = (modeloSel?.conteudo ?? "").replace(
+    // Live preview: replace {{var}} with filled values.
+    const conteudoPreview = versaoBody.replace(
         /\{\{(\w+)\}\}/g,
         (_, k) => lacunas[k] || `{{${k}}}`,
     );
-    const assuntoPreview = modeloSel
-        ? `${modeloSel.nome} — ${lacunas[modeloSel.lacunas?.[1]] || "..."}`
-        : "";
+    const assuntoPreview = versaoSubject
+        ? versaoSubject.replace(
+              /\{\{(\w+)\}\}/g,
+              (_, k) => lacunas[k] || `{{${k}}}`,
+          )
+        : modeloSel?.nome ?? "";
 
     const validate = () => {
         const e = {};
@@ -171,7 +191,16 @@ export default function Nova({ setPage }) {
                                                 const found = versoes.find(
                                                     (x) => String(x.id) === v,
                                                 );
-                                                setVersaoNome(found?.name ?? v);
+                                                setVersaoNome(
+                                                    found?.name ?? v,
+                                                );
+                                                setVersaoBody(
+                                                    found?.body ?? "",
+                                                );
+                                                setVersaoSubject(
+                                                    found?.subject ?? "",
+                                                );
+                                                setLacunas({});
                                             }}
                                             options={versoesOpts}
                                         />
@@ -180,11 +209,38 @@ export default function Nova({ setPage }) {
                                             className="input"
                                             style={{ color: C.textMuted }}
                                         >
-                                            {modeloId ? "Sem versões" : "—"}
+                                            {modeloId
+                                                ? "Sem versões"
+                                                : "—"}
                                         </div>
                                     )}
                                 </FormField>
                             </div>
+
+                            {/* Assunto da versão selecionada */}
+                            {versaoSubject && (
+                                <div
+                                    className="text-13 text-sub"
+                                    style={{ marginTop: 6 }}
+                                >
+                                    <strong>Assunto:</strong> {versaoSubject}
+                                </div>
+                            )}
+
+                            {modeloId && !loadingVersoes &&
+                                versoes.length === 0 && (
+                                    <div
+                                        className="lacunas-hint"
+                                        style={{
+                                            marginTop: 10,
+                                            color: C.warning,
+                                            background: C.warningBg,
+                                        }}
+                                    >
+                                        Este modelo não tem versões. Crie uma
+                                        em Modelos antes de enviar.
+                                    </div>
+                                )}
                         </div>
 
                         {/* Destinatários */}
@@ -197,7 +253,10 @@ export default function Nova({ setPage }) {
                                     value={para}
                                     onChange={(v) => {
                                         setPara(v);
-                                        setErrors((e) => ({ ...e, para: "" }));
+                                        setErrors((e) => ({
+                                            ...e,
+                                            para: "",
+                                        }));
                                     }}
                                     placeholder="nome@empresa.com"
                                     hasError={!!errors.para}
@@ -235,23 +294,23 @@ export default function Nova({ setPage }) {
                             )}
                         </div>
 
-                        {/* Lacunas */}
-                        {modeloSel && modeloSel.lacunas?.length > 0 && (
+                        {/* Lacunas — shown only when the version body has {{variables}} */}
+                        {lacunasDetectadas.length > 0 && (
                             <div className="card">
                                 <div className="card-section-title">
                                     Mensagem
                                 </div>
-                                <div className="text-13 text-muted mb-14">
+                                <div className="lacunas-hint">
                                     Lacunas detectadas:{" "}
-                                    {modeloSel.lacunas
+                                    {lacunasDetectadas
                                         .map((l) => `{{${l}}}`)
                                         .join(", ")}
                                 </div>
                                 <div className="code-preview">
-                                    {modeloSel.conteudo}
+                                    {versaoBody}
                                 </div>
                                 <div className="row-2">
-                                    {modeloSel.lacunas.map((l) => (
+                                    {lacunasDetectadas.map((l) => (
                                         <FormField key={l} label={l}>
                                             <Input
                                                 value={lacunas[l] ?? ""}
@@ -394,14 +453,30 @@ export default function Nova({ setPage }) {
                                             <span className="preview-label">
                                                 Conteúdo
                                             </span>
-                                            <span className="preview-body">
-                                                {conteudoPreview}
-                                            </span>
+                                            {conteudoPreview ? (
+                                                <span className="preview-body">
+                                                    {conteudoPreview}
+                                                </span>
+                                            ) : (
+                                                <span
+                                                    style={{
+                                                        color: C.textMuted,
+                                                        fontSize: 12,
+                                                    }}
+                                                >
+                                                    {loadingVersoes
+                                                        ? "Carregando versão..."
+                                                        : versoes.length === 0
+                                                          ? "Nenhuma versão disponível."
+                                                          : "Sem conteúdo."}
+                                                </span>
+                                            )}
                                         </div>
                                     </>
                                 ) : (
                                     <span className="preview-empty">
-                                        Selecione um modelo para pré-visualizar.
+                                        Selecione um modelo para
+                                        pré-visualizar.
                                     </span>
                                 )}
                             </div>

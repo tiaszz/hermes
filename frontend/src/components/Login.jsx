@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../components/UI.jsx";
 import { auth } from "../api.js";
+import hero from "../assets/hero.png";
 
 export default function Login({ onLogin }) {
     const [user, setUser] = useState("");
@@ -32,9 +33,19 @@ export default function Login({ onLogin }) {
                     <div className="login-brand-icon">
                         <Icon name="mail" size={18} color="white" />
                     </div>
-                    <span className="login-brand-name">Communiq</span>
+                    <span className="login-brand-name">Hermes</span>
                 </div>
                 <div>
+                    <img
+                        src={hero}
+                        alt=""
+                        style={{
+                            width: 220,
+                            opacity: 0.9,
+                            marginBottom: 28,
+                            display: "block",
+                        }}
+                    />
                     <h1 className="login-headline">
                         Centralize as comunicações
                         <br />

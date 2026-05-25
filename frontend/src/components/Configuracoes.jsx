@@ -231,7 +231,7 @@ export default function Configuracoes() {
                             <div className="flex justify-between">
                                 <span>Aplicação</span>
                                 <span className="font-500">
-                                    Communiq · Hermes Gateway
+                                    Hermes · Gateway de Comunicação
                                 </span>
                             </div>
                             <div className="flex justify-between">
